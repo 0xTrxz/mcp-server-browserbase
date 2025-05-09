@@ -2,7 +2,22 @@
 const express = require('express');
 const { spawn } = require('child_process');
 const app = express();
+
+// Get PORT from environment (critical for Railway)
 const port = process.env.PORT || 8080;
+
+// Log all environment variables for debugging (redacted for security)
+console.log('Environment variables:');
+Object.keys(process.env).forEach(key => {
+  if (key.includes('KEY') || key.includes('SECRET') || key.includes('TOKEN')) {
+    console.log(`${key}: [REDACTED]`);
+  } else {
+    console.log(`${key}: ${process.env[key]}`);
+  }
+});
+
+// Add middleware
+app.use(express.json());
 
 // Spawn the MCP server processes
 let browserbaseProcess = null;
@@ -11,7 +26,13 @@ let stagehandProcess = null;
 function startMcpServers() {
   console.log('Starting MCP server processes...');
   
-  // Start browserbase
+  // Only start processes if API keys are available
+  if (!process.env.BROWSERBASE_API_KEY || !process.env.BROWSERBASE_PROJECT_ID) {
+    console.log('⚠️ Missing BROWSERBASE_API_KEY or BROWSERBASE_PROJECT_ID - skipping MCP server startup');
+    return;
+  }
+  
+  // Start browserbase with inherited environment
   browserbaseProcess = spawn('node', ['browserbase/dist/index.js'], {
     env: process.env,
     stdio: ['ignore', 'pipe', 'pipe']
@@ -53,9 +74,9 @@ function startMcpServers() {
 // Start MCP servers on startup
 startMcpServers();
 
-// Health check endpoint
+// Root endpoint
 app.get('/', (req, res) => {
-  res.send('MCP Server is running. Connect using MCP client.');
+  res.send(`MCP Server is running on port ${port}. Use MCP client to connect.`);
 });
 
 // MCP status endpoint
@@ -63,13 +84,17 @@ app.get('/status', (req, res) => {
   const status = {
     browserbase: browserbaseProcess ? 'running' : 'stopped',
     stagehand: stagehandProcess ? 'running' : 'stopped',
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    port: port,
+    environment: process.env.NODE_ENV || 'development'
   };
   res.json(status);
 });
 
 // Restart MCP servers
 app.post('/restart', (req, res) => {
+  console.log('Restart requested');
+  
   if (browserbaseProcess) {
     browserbaseProcess.kill();
   }
@@ -83,7 +108,7 @@ app.post('/restart', (req, res) => {
 });
 
 // Start the Express server
-app.listen(port, '0.0.0.0', () => {
+const server = app.listen(port, '0.0.0.0', () => {
   console.log(`Express server running at http://0.0.0.0:${port}`);
 });
 
@@ -99,5 +124,8 @@ process.on('SIGTERM', () => {
     stagehandProcess.kill();
   }
   
-  process.exit(0);
+  server.close(() => {
+    console.log('Express server closed');
+    process.exit(0);
+  });
 }); 
