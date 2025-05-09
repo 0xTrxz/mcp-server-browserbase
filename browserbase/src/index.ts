@@ -628,6 +628,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) =>
 async function runServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
+  // Use PORT from environment variable or default to 8080
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
+  
+  // Create a simple HTTP server to satisfy Railway
+  const http = require('http');
+  const httpServer = http.createServer((req: any, res: any) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Browserbase MCP Server running. Connect using MCP client.');
+  });
+  
+  httpServer.listen(port, '0.0.0.0', () => {
+    console.log(`Browserbase MCP server HTTP listener started on port ${port}`);
+  });
+  
+  console.log("Browserbase MCP server is ready to accept requests");
 }
 
 runServer().catch(console.error);
