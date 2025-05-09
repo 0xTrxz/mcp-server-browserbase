@@ -1,0 +1,16 @@
+{
+  "name": "mcp-server-browserbase",
+  "version": "0.5.1",
+  "description": "MCP servers for browser automation using Browserbase and Stagehand",
+  "private": true,
+  "scripts": {
+    "preinstall": "npm install --prefix browserbase && npm install --prefix stagehand",
+    "build": "npm run build --prefix browserbase && npm run build --prefix stagehand",
+    "start": "node browserbase/dist/index.js",
+    "start:stagehand": "node stagehand/dist/index.js",
+    "start:all": "concurrently \"npm run start\" \"npm run start:stagehand\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 
